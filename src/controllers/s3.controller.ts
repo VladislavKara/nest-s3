@@ -28,12 +28,29 @@ import { Response } from 'express';
 import { JwtAccessGuard } from 'src/modules/auth/guards/jwt-access.guard';
 import { RequestInterface } from 'src/modules/auth/interfaces/request.interface';
 
+import { ExceptionLocalCode } from '../../../../src/enums/exception-local-code';
+import { ExceptionMessage } from '../../../../src/enums/exception-message';
+import { AppHttpException } from '../../../../src/filters/app-http.exception';
 import { S3_ROUT_PREFIX, S3Service } from '../services/s3.service';
 
 @ApiTags(S3_ROUT_PREFIX.toUpperCase())
 @Controller(S3_ROUT_PREFIX)
 export class S3Controller {
   constructor(private readonly s3Service: S3Service) {}
+
+  private isValidFileType(file: Express.Multer.File): boolean {
+    if (!file) {
+      throw new AppHttpException(
+          ExceptionMessage.INVALID_DATA,
+          HttpStatus.NOT_FOUND,
+          ExceptionLocalCode.INVALID_DATA,
+      );
+    }
+
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/gif'];
+
+    return allowedTypes.includes(file.mimetype);
+  }
 
   @Get(':id')
   @ApiOperation({
@@ -46,8 +63,8 @@ export class S3Controller {
     description: 'Image not found',
   })
   async getFileById(
-    @Param() param: IdParamDto,
-    @Res() res: Response,
+      @Param() param: IdParamDto,
+      @Res() res: Response,
   ): Promise<void> {
     const body = await this.s3Service.getObject(param.id);
 
@@ -99,10 +116,18 @@ export class S3Controller {
     },
   })
   async uploadFile(
-    @UploadedFile() img: Express.Multer.File,
-    @Request() { user }: RequestInterface,
-    @Body() body: UploadFileCommand,
+      @UploadedFile() img: Express.Multer.File,
+      @Request() { user }: RequestInterface,
+      @Body() body: UploadFileCommand,
   ): Promise<string> {
+    if (!this.isValidFileType(img)) {
+      throw new AppHttpException(
+          ExceptionMessage.INVALID_DATA,
+          HttpStatus.CONFLICT,
+          ExceptionLocalCode.INVALID_DATA,
+      );
+    }
+
     const key = this.s3Service.getKey(body.id, user.id, user.role);
 
     return this.s3Service.uploadFile(key, img);
@@ -129,8 +154,8 @@ export class S3Controller {
     description: 'Access denied',
   })
   async deleteFile(
-    @Request() { user }: RequestInterface,
-    @Param() param: IdParamDto,
+      @Request() { user }: RequestInterface,
+      @Param() param: IdParamDto,
   ): Promise<boolean> {
     const key = this.s3Service.getKey(param.id, user.id, user.role);
 
