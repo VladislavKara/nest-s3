@@ -38,7 +38,7 @@ import { S3_ROUT_PREFIX, S3Service } from '../services/s3.service';
 export class S3Controller {
   constructor(private readonly s3Service: S3Service) {}
 
-  private isValidFileType(file: Express.Multer.File): boolean {
+  private isValidFile(file: Express.Multer.File): boolean {
     if (!file) {
       throw new AppHttpException(
           ExceptionMessage.INVALID_DATA,
@@ -48,8 +48,17 @@ export class S3Controller {
     }
 
     const allowedTypes = ['image/jpeg', 'image/png', 'image/gif'];
+    const magicNumbers = [
+      'ffd8ffe0', //jpg
+      'ffd8ffe1', //jpg1
+      '89504e47', //png
+      '47494638', //gif
+    ];
 
-    return allowedTypes.includes(file.mimetype);
+    return (
+        allowedTypes.includes(file.mimetype) &&
+        magicNumbers.includes(file.buffer.toString('hex', 0, 4))
+    );
   }
 
   @Get(':id')
@@ -120,7 +129,7 @@ export class S3Controller {
       @Request() { user }: RequestInterface,
       @Body() body: UploadFileCommand,
   ): Promise<string> {
-    if (!this.isValidFileType(img)) {
+    if (!this.isValidFile(img)) {
       throw new AppHttpException(
           ExceptionMessage.INVALID_DATA,
           HttpStatus.CONFLICT,
