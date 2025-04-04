@@ -49,15 +49,18 @@ export class S3Controller {
 
     const allowedTypes = ['image/jpeg', 'image/png', 'image/gif'];
     const magicNumbers = [
-      'ffd8ffe0', //jpg
-      'ffd8ffe1', //jpg1
+      'ffd8', //jpg
       '89504e47', //png
       '47494638', //gif
     ];
+    let number = file.buffer.toString('hex', 0, 4);
+
+    if (file.mimetype === 'image/jpeg') {
+      number = file.buffer.toString('hex', 0, 2);
+    }
 
     return (
-        allowedTypes.includes(file.mimetype) &&
-        magicNumbers.includes(file.buffer.toString('hex', 0, 4))
+        allowedTypes.includes(file.mimetype) && magicNumbers.includes(number)
     );
   }
 
